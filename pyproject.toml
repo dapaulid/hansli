@@ -7,11 +7,25 @@ authors = [
 ]
 dependencies = [
     "openai>=1.14.2",
+    "pyyaml>=6.0.1",
+    "rich>=13.7.1",
 ]
 requires-python = "==3.10.*"
 readme = "README.md"
 license = {text = "MIT"}
 
+[project.urls]
+Homepage = "https://github.com/dapaulid/hansli"
+Documentation = "https://github.com/dapaulid/hansli"
+Repository = "https://github.com/dapaulid/hansli.git"
+"Bug Tracker" = "https://github.com/dapaulid/hansli/issues"
+Changelog = "https://github.com/dapaulid/hansli"
+
+[project.scripts]
+hansli = "hansli:entry"
 
 [tool.pdm]
 distribution = false
+
+[tool.pdm.scripts]
+_.env_file = ".env"
