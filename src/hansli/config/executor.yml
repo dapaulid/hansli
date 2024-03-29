@@ -1,0 +1,6 @@
+commands:
+  run: 
+    shell: ./%(input)s
+    requires: build    
+  build:
+    shell: g++ %(input)s -o %(output)s

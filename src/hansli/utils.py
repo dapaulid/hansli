@@ -118,8 +118,16 @@ class Persistent:
 #-------------------------------------------------------------------------------
 #
 def load_file(filename):
-	with open(filename, 'r') as inp:
-		return inp.read()
+	ext = file_ext(filename).lower()
+	if ext in ['.yml', '.yaml']:
+		with open(filename, 'r') as inp:
+			return yaml.safe_load(inp)
+	else:
+		# assume some text file
+		with open(filename, 'r') as inp:
+			return inp.read()
+	# end if
+# end function
 	
 def save_file(filename, content):
 	with open(filename, 'w') as out:
@@ -140,6 +148,16 @@ def extract_code_block(markdown_text, language=None):
 	return markdown_text[start_index + len(start_tag):end_index]
 # end function
 
+#-------------------------------------------------------------------------------
+#
+def file_ext(filename):
+	return os.path.splitext(filename)[1]
+# end function
+
+#-------------------------------------------------------------------------------
+#
+def from_here(rel_path):
+	return os.path.join(os.path.dirname(os.path.realpath(__file__)), rel_path)
 
 #-------------------------------------------------------------------------------
 # initialization

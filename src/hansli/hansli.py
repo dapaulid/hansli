@@ -20,6 +20,8 @@ import sys
 from rich.console import Console
 from rich.markdown import Markdown
 
+from .executor import Executor
+from .report import Report
 from . import utils
 from .utils import prog, Failed
 
@@ -47,16 +49,56 @@ def main():
 		description="%s v%s - %s\n  %s" % (prog.name, prog.version, prog.description, prog.website),
 		epilog="examples:" + USAGE_EXAMPLES,
 		formatter_class=argparse.RawTextHelpFormatter)
-	parser.add_argument('sourcefile',
-		help="the source file of the program to run")
+	parser.add_argument('command',
+		help="command to execute, e.g. run or build")
+	parser.add_argument('input',
+		help="path to the input file or directory")
 	parser.add_argument('args', nargs='*', 
 		help="program arguments")
 	# that's all   
 	args = parser.parse_args()
 
+	executor = Executor(utils.from_here("config/executor.yml"))
+
+	attempts = 0
+	max_attempts = 3
+	while True:
+		report = Report() # TODO keep state over retries?
+		success, output = executor.execute(args.command, args.input, report)
+		console.print(Markdown(report.markdown))
+		if success:
+			break
+		else:
+			if attempts < max_attempts:
+				attempts += 1
+				autofix(args.input, report)
+			else:
+				raise Failed("autofix did not succeed after %d attempts" % max_attempts)
+			# end if
+		# # end if
+	if attempts == 0:
+		print("success!")
+	else:
+		print("success after %d autofix attempts" % attempts)
+
+	return
+
 	# do it
 	run(args)
 # end function
+
+#-------------------------------------------------------------------------------
+#
+def autofix(input, report: Report):
+	llm = LLM_OpenAI("autofix", "gpt-3.5-turbo")
+	reply = llm.chat(report.markdown)
+	console.print(Markdown(reply))
+	lang = os.path.splitext(input)[1][1:]
+	code = utils.extract_code_block(reply, lang)
+	if not code:
+		raise Failed("AI did not correctly generate source code")
+	utils.save_file(input, code)	
+# end function	
 
 #-------------------------------------------------------------------------------
 # functions
@@ -65,7 +107,7 @@ def main():
 def run(args):
 	llm = LLM_OpenAI("autofix", "gpt-3.5-turbo")	
 	report = report_file(args.sourcefile)
-	max_attempts = 3
+	max_attempts = 0
 	i = 0
 	while True:
 		try:
@@ -129,19 +171,17 @@ def generate_report(source_file, build_file, build_output):
 
 #-------------------------------------------------------------------------------
 #
-def write_sh(filename, content):
-	with open(filename, 'w') as out:
-		out.write(content + '\n')
-	os.chmod(filename, 0o744)
-# end function
-
-#-------------------------------------------------------------------------------
-#
+import traceback
 def entry():
 	try:
 		main()
 	except Failed as e:
-		error_console.print("error: %s" % e)
+		error_console.print("[ERROR] %s" % e)
+	except FileNotFoundError as e:
+		error_console.print(traceback.format_exc().strip())
+		error_console.print("  cwd: %s\n" % os.getcwd())
+	except:
+		error_console.print(traceback.format_exc())		
 	# end try
 # end function	
 		
