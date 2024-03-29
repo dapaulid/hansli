@@ -14,6 +14,7 @@
 # imports 
 #-------------------------------------------------------------------------------
 #
+import atexit
 import collections
 import glob
 import os
@@ -25,6 +26,12 @@ from time import perf_counter as timer
 from importlib.metadata import metadata
 
 import yaml
+
+from rich.console import Console
+from rich.markdown import Markdown
+
+console = Console()
+error_console = Console(stderr=True)
 
 #-------------------------------------------------------------------------------
 # classes
@@ -47,31 +54,6 @@ class Failed(Exception):
 
 #-------------------------------------------------------------------------------
 #
-class Colors:
-    # standard
-    RED          = '\x1b[1;31m'
-    GREEN        = '\x1b[1;32m'
-    YELLOW       = "\x1b[1;33m"
-    BLUE         = "\x1b[1;34m"
-    PURPLE       = "\x1b[1;35m"
-    CYAN         = "\x1b[1;36m"
-    WHITE        = "\x1b[1;37m"
-    # modifiers
-    BOLD         = "\x1b[1m"
-    FAINT        = "\x1b[2m"
-    ITALIC       = "\x1b[3m"
-    UNDERLINE    = "\x1b[4m"
-    BLINK        = "\x1b[5m"
-    NEGATIVE     = "\x1b[7m"
-    CROSSED      = "\x1b[9m"
-    # combinations
-    LINK         = BLUE + UNDERLINE
-    # misc
-    RESET        = '\x1b[0m'
-# end class
-
-#-------------------------------------------------------------------------------
-#
 class OsPaths:
 	if os.name == 'nt':
 		APPDATA = os.getenv('APPDATA')
@@ -84,9 +66,9 @@ class OsPaths:
 #
 class Persistent:
 	def __init__(self, name):
-		self.name = name
-	def __del__(self):
-		self.save()
+		self._name = name
+		# save on normal program termination
+		atexit.register(self.save)
 
 	def load(self):
 		state = {}
@@ -99,14 +81,14 @@ class Persistent:
 			if a in state:
 				setattr(self, a, state[a])
 		# end for	
-		
+
 	def save(self):
 		state = { a: getattr(self, a) for a in self.attrs() }
 		with open(self.get_filename(), 'w') as out:
 			yaml.dump(state, out)
 
 	def get_filename(self):
-		return self.name + '.yml'
+		return self._name + '.yml'
 
 	def attrs(self):
 		return [a for a in dir(self) if not a.startswith('_') and not callable(getattr(self, a))]
@@ -158,6 +140,26 @@ def file_ext(filename):
 #
 def from_here(rel_path):
 	return os.path.join(os.path.dirname(os.path.realpath(__file__)), rel_path)
+
+#-------------------------------------------------------------------------------
+#
+def from_home(rel_path):
+	return os.path.join(os.path.expanduser("~"), rel_path)
+
+#-------------------------------------------------------------------------------
+#
+def error(msg):
+	error_console.print("[bold red]ERROR[/bold red]: %s" % msg)
+
+#-------------------------------------------------------------------------------
+#
+def warn(msg):
+	error_console.print("[bold yellow]WARNING[/bold yellow]: %s" % msg)
+
+#-------------------------------------------------------------------------------
+#
+def print_markdown(md):
+	console.print(Markdown(md))
 
 #-------------------------------------------------------------------------------
 # initialization

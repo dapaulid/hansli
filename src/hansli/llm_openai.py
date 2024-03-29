@@ -1,15 +1,21 @@
 from .context import Context
+from .config import config
+from . import utils
+from .utils import Failed
 
 from openai import OpenAI
-client = OpenAI()
 
-# NOTE: API key must be specified in .env file as follows:
-# OPENAI_API_KEY=...
-
-from . import utils
 
 class LLM_OpenAI:
 	def __init__(self, name, model):
+		# read API key from config
+		api_key = config.api_keys.get('openai.com')
+		if not api_key:
+			raise Failed("please add API key for 'openai.com' to use model '%s'" % model)
+		# init client
+		self.client = OpenAI(
+			api_key=api_key
+		)
 		self.ctx = Context(name)
 		self.model = model
 		if len(self.ctx.messages) == 0:
@@ -24,7 +30,7 @@ class LLM_OpenAI:
 		# add prompt to context
 		self.ctx.messages.append({ 'role': 'user', 'content': msg })
 		# call API
-		completion = client.chat.completions.create(
+		completion = self.client.chat.completions.create(
 			model=self.model,
 			messages=self.ctx.messages
 		)
