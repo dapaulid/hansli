@@ -1,13 +1,20 @@
-from .context import Context
-from .config import config
-from . import utils
-from .utils import Failed
+from ..context import Context
+from ..config import config
+from .. import utils
+from ..utils import Failed
+
+from .llm import LLM
 
 from openai import OpenAI
 
+# factory function
+def create(name, model):
+	return LLM_OpenAI(name, model)
 
-class LLM_OpenAI:
+class LLM_OpenAI(LLM):
 	def __init__(self, name, model):
+		super().__init__(name, model)
+		self.model_id = LLM.split_model(model)[0]
 		# read API key from config
 		api_key = config.api_keys.get('openai.com')
 		if not api_key:
@@ -17,10 +24,6 @@ class LLM_OpenAI:
 			api_key=api_key
 		)
 		self.ctx = Context(name)
-		self.model = model
-		if len(self.ctx.messages) == 0:
-			preprompt = utils.load_file(name + '.md')
-			self.add_prepromt(preprompt)
 	# end function
 	
 	def add_prepromt(self, msg):
@@ -31,7 +34,7 @@ class LLM_OpenAI:
 		self.ctx.messages.append({ 'role': 'user', 'content': msg })
 		# call API
 		completion = self.client.chat.completions.create(
-			model=self.model,
+			model=self.model_id,
 			messages=self.ctx.messages
 		)
 		assert len(completion.choices) == 1

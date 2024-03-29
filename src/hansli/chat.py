@@ -1,7 +1,7 @@
 from rich.console import Console
 from rich.markdown import Markdown
 
-from llm_openai import LLM_OpenAI
+from hansli.llm.llm_openai import LLM_OpenAI
 
 console = Console()
 

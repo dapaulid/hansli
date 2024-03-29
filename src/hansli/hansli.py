@@ -24,7 +24,7 @@ from . import utils
 from .utils import prog, Failed
 from .config import config
 
-from .llm_openai import LLM_OpenAI
+from .llm import LLM
 
 #-------------------------------------------------------------------------------
 # constants
@@ -107,7 +107,7 @@ def execute(args):
 #-------------------------------------------------------------------------------
 #
 def autofix(input, report: Report):
-	llm = LLM_OpenAI("autofix", "gpt-3.5-turbo")
+	llm = LLM.create("autofix", "gpt-3.5-turbo@openai.com")
 	reply = llm.chat(report.markdown)
 	utils.print_markdown(reply)
 	lang = os.path.splitext(input)[1][1:]
