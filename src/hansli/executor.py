@@ -14,6 +14,7 @@
 #
 import os
 import subprocess
+import sys
 
 import yaml
 
@@ -26,11 +27,12 @@ from .utils import Failed
 #-------------------------------------------------------------------------------
 #
 class Executor:
-	def __init__(self, config_file):
+	def __init__(self, config_file, verbose=False):
 		self.config = utils.load_file(config_file)
+		self.verbose = verbose
 	# end function
 
-	def execute(self, command, input, report: Report):
+	def execute(self, command, input, report=None, depth=0):
 		cmd = self.config['commands'].get(command)
 		if not cmd:
 			raise Failed("the given command is unknown: %s" % command)
@@ -38,10 +40,7 @@ class Executor:
 		# run dependencies if any
 		requires = cmd.get('requires')
 		if requires:
-			success, input = self.execute(requires, input, report)
-			if not success:
-				return False, None
-			# end if
+			input = self.execute(requires, input, report, depth+1)
 		# end if
 
 		dirname = os.path.dirname(input)
@@ -59,17 +58,59 @@ class Executor:
 			shell_cmd = cmd['shell'] % placeholders
 			write_sh(shell_file, shell_cmd)
 		# execute it
-		report.append_file(shell_file, label="%s command" % command)
-		ret = subprocess.run('./' + os.path.basename(shell_file), 
-			shell=True, cwd=dirname, 
-			stdout=subprocess.PIPE, stderr=subprocess.STDOUT)	
-		stdout = ret.stdout.decode()
-		report.append_block(stdout, title="%s output" % command, lang='sh')
-		success = ret.returncode == 0
-		# provide more context on failure
+		if report:
+			report.append_file(shell_file, label="%s command" % command)
+
+		# only show output of first command, unless verbose mode is enabled
+		print_all_output = depth == 0 or self.verbose
+		# we need to capture output if a report is requested
+		# or we do not print the output directly (so that we can output it after errors)
+		capture = report is not None or not print_all_output
+		if capture:
+			stdout = subprocess.PIPE
+			stderr = subprocess.STDOUT
+		else:
+			stdout = None
+			stderr = None
+		# end if
+
+		# start process
+		proc = subprocess.Popen('./' + os.path.basename(shell_file), 
+			shell=True, cwd=dirname, stdout=stdout, stderr=stderr)
+
+		if capture:
+			captured_output = ""
+			while True:
+				line = proc.stdout.readline().decode()
+				if not line: break
+				if print_all_output:
+					#utils.console.print(line, end=None)
+					sys.stdout.write(line)
+				captured_output += line
+			# end while
+		# end if
+		returncode = proc.wait()
+		success = returncode == 0
+
+		if capture:
+			captured_output += proc.stdout.read().decode()			
+
+		if report:
+			report.append_block(captured_output, title="%s output" % command, lang='sh')
+			# provide more context on failure
+			if not success:
+				report.append_file(input, label="%s input" % command)
+		# end if
+
+		# handle error
 		if not success:
-			report.append_file(input, label="%s input" % command)
-		return success, output
+			if capture:
+				sys.stdout.write(captured_output)
+
+			raise Failed("%s failed with errors. Try again with '--autofix' to correct them automatically." % command)
+
+		# success
+		return output
 	# end function
 # end class
 

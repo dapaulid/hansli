@@ -52,6 +52,11 @@ def main():
 	parser.add_argument('args', nargs='*', 
 		help="program arguments")
 
+	parser.add_argument('-a', '--autofix', action='store_true',
+		help="attempt to fix errors automatically")
+	parser.add_argument('-v', '--verbose', action='store_true',
+		help="print all subprocess output")
+
 	# that's all   
 	args = parser.parse_args()
 
@@ -78,29 +83,35 @@ def main():
 #
 def execute(args):
 	
-	executor = Executor(utils.from_here("config/executor.yml"))
+	executor = Executor(utils.from_here("config/executor.yml"), 
+		verbose=args.verbose)
 
-	attempts = 0
-	max_attempts = 3
-	while True:
-		report = Report() # TODO keep state over retries?
-		success, output = executor.execute(args.command, args.input, report)
-		utils.print_markdown(report.markdown)
-		if success:
-			break
+	if args.autofix:
+		# with autofix
+		attempts = 0
+		max_attempts = 1
+		while True:
+			report = Report() # TODO keep state over retries?
+			try:
+				executor.execute(args.command, args.input, report)
+				break
+			except Failed:
+				if attempts < max_attempts:
+					attempts += 1
+					autofix(args.input, report)
+				else:
+					raise Failed("autofix did not succeed after %d attempts" % max_attempts)
+				# end if
+			# try
+		# end while
+		if attempts == 0:
+			print("success!")
 		else:
-			if attempts < max_attempts:
-				attempts += 1
-				autofix(args.input, report)
-			else:
-				raise Failed("autofix did not succeed after %d attempts" % max_attempts)
-			# end if
+			print("success after %d autofix attempts" % attempts)
 		# end if
-	# end while
-	if attempts == 0:
-		print("success!")
 	else:
-		print("success after %d autofix attempts" % attempts)
+		# the boring way
+		executor.execute(args.command, args.input)
 	# end if
 # end function
 
@@ -108,13 +119,16 @@ def execute(args):
 #
 def autofix(input, report: Report):
 	llm = LLM.create("autofix", "gpt-3.5-turbo@openai.com")
+	utils.print_markdown(report.markdown)	
 	reply = llm.chat(report.markdown)
 	utils.print_markdown(reply)
 	lang = os.path.splitext(input)[1][1:]
-	code = utils.extract_code_block(reply, lang)
-	if not code:
+	corrected_files = utils.extract_code_blocks(reply, "Corrected file")
+	if not corrected_files:
+		print(reply)
 		raise Failed("AI did not correctly generate source code")
-	utils.save_file(input, code)	
+	for filename, content in corrected_files:
+		utils.save_file(filename, content)	
 # end function	
 
 #-------------------------------------------------------------------------------

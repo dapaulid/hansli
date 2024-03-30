@@ -115,19 +115,10 @@ def save_file(filename, content):
 	with open(filename, 'w') as out:
 		return out.write(content)
 
-def extract_code_block(markdown_text, language=None):
-	start_tag = "```" + language + "\n" if language else "```"
-	end_tag = "```"
-
-	start_index = markdown_text.find(start_tag)
-	if start_index == -1:
-		return ""  # Code block start tag not found
-
-	end_index = markdown_text.find(end_tag, start_index + len(start_tag))
-	if end_index == -1:
-		return ""  # Code block end tag not found
-
-	return markdown_text[start_index + len(start_tag):end_index]
+def extract_code_blocks(markdown_text, label):
+    pattern = fr"# {label}: (.*?)\n```(.*?)\n(.*?)```"
+    matches = re.findall(pattern, markdown_text, re.DOTALL)
+    return [(match[0].strip(), match[2].strip()) for match in matches]
 # end function
 
 #-------------------------------------------------------------------------------
@@ -149,7 +140,7 @@ def from_home(rel_path):
 #-------------------------------------------------------------------------------
 #
 def error(msg):
-	error_console.print("[bold red]ERROR[/bold red]: %s" % msg)
+	error_console.print("\n[bold red]ERROR[/bold red]: %s" % msg)
 
 #-------------------------------------------------------------------------------
 #

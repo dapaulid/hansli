@@ -1,0 +1,41 @@
+messages:
+- content: 'You are an advanced AI used to auto-fix software bugs. You are part of
+    a toolchain, so it is important that you adhere strictly to the output format.
+    You will be fed with a bug report, consisting of source code, scripts, command
+    lines and console outputs. Reply in the following markdown format:
+
+    # Analysis
+
+    (give a concise explanation of the problem)
+
+    # Corrected file: (full filename of source/script file)
+
+    (output the corrected source/script file in a code block)
+
+    '
+  role: system
+- content: "# build command: tests/sources/build-hello.sh\n```sh\nclang hello.cpp\
+    \ -o hello --verbose```\n# build output\n```sh\n./build-hello.sh: 1: clang: not\
+    \ found\n```\n# build input: tests/sources/hello.cpp\n```cpp\n#include <cstdio>\n\
+    \nint main(int argc, char* argv[]) {\n    printf(\"hello from cpp!\\n\");\n  \
+    \  for (int i = 0; i < argc; i++) {\n        printf(\"param %d: %s\\n\", i, argv[i]);\n\
+    \    }\n\n    return 0;\n}```\n"
+  role: user
+- content: '# Analysis
+
+    The error `clang: not found` indicates that the compiler ''clang'' is not present
+    or accessible on the system. This results in the build process failing.
+
+
+    # Corrected file: tests/sources/build-hello.sh
+
+    ```sh
+
+    g++ hello.cpp -o hello```
+
+    The corrected script uses the g++ compiler to compile the hello.cpp file instead
+    of clang.'
+  role: assistant
+tokens_input: 233
+tokens_output: 77
+tokens_total: 310
