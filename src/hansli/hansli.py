@@ -73,6 +73,12 @@ def main():
 		config.set_apikey(name, value)
 		return
 	# end if
+	if args.command == 'autoimprove':
+		report = Report()
+		report.append_file(args.input, "input file")
+		autoimprove(report)
+		return
+	# end if
 
 	# do it
 	execute(args)
