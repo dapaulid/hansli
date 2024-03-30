@@ -98,8 +98,13 @@ class Executor:
 		if report:
 			report.append_block(captured_output, title="%s output" % command, lang='sh')
 			# provide more context on failure
-			if not success:
+			#if not success:
+			try:
 				report.append_file(input, label="%s input" % command)
+			except UnicodeDecodeError:
+				# probably a binary file
+				pass
+			# end try				
 		# end if
 
 		# handle error

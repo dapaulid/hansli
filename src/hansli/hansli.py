@@ -54,6 +54,8 @@ def main():
 
 	parser.add_argument('-a', '--autofix', action='store_true',
 		help="attempt to fix errors automatically")
+	parser.add_argument('--autoimprove', action='store_true',
+		help="let an AI assistant improve the input files")
 	parser.add_argument('-v', '--verbose', action='store_true',
 		help="print all subprocess output")
 
@@ -98,7 +100,7 @@ def execute(args):
 			except Failed:
 				if attempts < max_attempts:
 					attempts += 1
-					autofix(args.input, report)
+					autofix(report)
 				else:
 					raise Failed("autofix did not succeed after %d attempts" % max_attempts)
 				# end if
@@ -109,6 +111,11 @@ def execute(args):
 		else:
 			print("success after %d autofix attempts" % attempts)
 		# end if
+	elif args.autoimprove:
+		# with autoimprove
+		report = Report()
+		executor.execute(args.command, args.input, report)
+		autoimprove(report)
 	else:
 		# the boring way
 		executor.execute(args.command, args.input)
@@ -117,19 +124,37 @@ def execute(args):
 
 #-------------------------------------------------------------------------------
 #
-def autofix(input, report: Report):
+def autofix(report: Report):
 	llm = LLM.create("autofix", "gpt-3.5-turbo@openai.com")
 	utils.print_markdown(report.markdown)	
 	reply = llm.chat(report.markdown)
 	utils.print_markdown(reply)
-	lang = os.path.splitext(input)[1][1:]
 	corrected_files = utils.extract_code_blocks(reply, "Corrected file")
 	if not corrected_files:
 		print(reply)
 		raise Failed("AI did not correctly generate source code")
 	for filename, content in corrected_files:
 		utils.save_file(filename, content)	
-# end function	
+# end function
+
+#-------------------------------------------------------------------------------
+#
+def autoimprove(report: Report):
+	llm = LLM.create("autoimprove", "gpt-3.5-turbo@openai.com")
+	utils.print_markdown(report.markdown)	
+	reply = llm.chat(report.markdown)
+	utils.print_markdown(reply)
+	improved_files = utils.extract_code_blocks(reply, "Improved file")
+	if len(improved_files) > 0:
+		print("Your AI assistant improved the following files:")
+		for filename, content in improved_files:
+			print("  %s" % filename)
+			utils.save_file(filename, content)	
+		# end for
+	else:
+		print("Your AI assistant found nothing to improve")
+	# end if
+# end function				
 
 #-------------------------------------------------------------------------------
 #

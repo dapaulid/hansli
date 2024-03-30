@@ -118,7 +118,7 @@ def save_file(filename, content):
 def extract_code_blocks(markdown_text, label):
     pattern = fr"# {label}: (.*?)\n```(.*?)\n(.*?)```"
     matches = re.findall(pattern, markdown_text, re.DOTALL)
-    return [(match[0].strip(), match[2].strip()) for match in matches]
+    return [(match[0].strip(), match[2]) for match in matches]
 # end function
 
 #-------------------------------------------------------------------------------
